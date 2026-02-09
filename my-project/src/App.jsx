@@ -9,7 +9,7 @@ function App() {
   return (
     <>
      <h1 class="text-3xl font-bold underline">
-    Hello world!
+    click here for mitm 6 th sem results!
   </h1>
     </>
   )
