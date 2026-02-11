@@ -3,21 +3,21 @@ import './App.css'
 import Home from './pages/home'
 import About from './pages/about'
 import Contact from './pages/contact'
+import Header from './components/Header'
+import Footer from './components/footer'
 
 function App() {
   return (
     <Router>
-      <nav style={{ padding: '1rem', backgroundColor: '#333', marginBottom: '1rem' }}>
-        <Link to="/" style={{ color: 'white', marginRight: '1rem' }}>Home</Link>
-        <Link to="/about" style={{ color: 'white', marginRight: '1rem' }}>About</Link>
-        <Link to="/contact" style={{ color: 'white' }}>Contact</Link>
-      </nav>
+      <Header />
+      
 
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
       </Routes>
+      <Footer />
     </Router>
   )
 }
