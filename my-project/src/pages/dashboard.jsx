@@ -1,11 +1,22 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
     const navigate = useNavigate();
     const [message, setMessage] = useState('');
-    const [response, setResponse] = useState('');
+    const [messages, setMessages] = useState([
+        { role: 'assistant', content: 'Hello! I am your AI assistant. How can I help you today?' }
+    ]);
     const [loading, setLoading] = useState(false);
+    const messagesEndRef = useRef(null);
+
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    useEffect(() => {
+        scrollToBottom();
+    }, [messages]);
 
     useEffect(() => {
         const token = localStorage.getItem('access_token');
@@ -22,101 +33,122 @@ const Dashboard = () => {
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
+        if (!message.trim()) return;
+
+        const userMessage = { role: 'user', content: message };
+        setMessages((prev) => [...prev, userMessage]);
+        setMessage('');
         setLoading(true);
+
         const token = localStorage.getItem('access_token');
 
         try {
-            // Assuming there's an AI response endpoint.Adjust URL as needed.
-            // Using a placeholder endpoint for now based on previous context
-            // If the user didn't specify the AI endpoint, I'll use a generic one or the root for testing connectivity
-            // But based on context, there might be an /ai_response endpoint
-
-            // For now, let's just simulate or call a known endpoint. 
-            // The user asked for "generate code in dashboard.jsx in which when user login it should successfully show dashboard"
-            // I'll keep it simple: Just show the dashboard. 
-            // I'll add a simple fetch to root or similar if needed, but the main requirement is showing the dashboard.
-
-            // Wait, the user request showed a JSON structure with "system_prompt" and "response". 
-            // This suggests they want to interact with the AI.
-            // I will implement the UI for it.
-
             const res = await fetch('http://127.0.0.1:8000/ai_response', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ message: message }) // Adjust payload as per backend expectation
+                body: JSON.stringify({ message: userMessage.content })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setResponse(data.response || JSON.stringify(data));
+                const aiResponse = { role: 'assistant', content: data.response || JSON.stringify(data) };
+                setMessages((prev) => [...prev, aiResponse]);
             } else {
-                setResponse('Error fetching response');
+                setMessages((prev) => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
             }
         } catch (error) {
             console.error('Error:', error);
-            setResponse('Network error');
+            setMessages((prev) => [...prev, { role: 'assistant', content: 'Network error. Please check your connection.' }]);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <nav className="bg-white shadow-sm">
+        <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+            {/* Navigation Header */}
+            <nav className="bg-white border-b border-gray-200 z-10 shrink-0">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between h-16">
-                        <div className="flex items-center">
-                            <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
+                    <div className="flex justify-between h-16 items-center">
+                        <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+                                <span className="text-white font-bold text-lg">A</span>
+                            </div>
+                            <h1 className="text-xl font-bold text-gray-900">AI Chat</h1>
                         </div>
-                        <div className="flex items-center">
-                            <button
-                                onClick={handleLogout}
-                                className="ml-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                            >
-                                Logout
-                            </button>
-                        </div>
+                        <button
+                            onClick={handleLogout}
+                            className="text-sm font-medium text-gray-600 hover:text-red-600 transition-colors px-3 py-2 rounded-md hover:bg-red-50"
+                        >
+                            Logout
+                        </button>
                     </div>
                 </div>
             </nav>
 
-            <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="px-4 py-6 sm:px-0">
-                    <div className="border-4 border-dashed border-gray-200 rounded-lg h-96 flex flex-col items-center justify-center p-6">
-                        <h2 className="text-2xl font-semibold text-gray-700 mb-4">Welcome to your Dashboard!</h2>
-                        <p className="text-gray-500 mb-8">You are successfully logged in.</p>
-
-                        {/* Simple AI Chat Interface (Placeholder) */}
-                        <div className="w-full max-w-md">
-                            <form onSubmit={handleSendMessage} className="flex gap-2 mb-4">
-                                <input
-                                    type="text"
-                                    value={message}
-                                    onChange={(e) => setMessage(e.target.value)}
-                                    placeholder="Ask something..."
-                                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm p-2 border"
-                                />
-                                <button
-                                    type="submit"
-                                    disabled={loading}
-                                    className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                                >
-                                    {loading ? 'Sending...' : 'Send'}
-                                </button>
-                            </form>
-                            {response && (
-                                <div className="bg-white p-4 rounded-md shadow border border-gray-200">
-                                    <h3 className="text-sm font-medium text-gray-900">AI Response:</h3>
-                                    <p className="mt-1 text-sm text-gray-600">{response}</p>
-                                </div>
-                            )}
+            {/* Main Chat Area */}
+            <main className="flex-1 overflow-y-auto p-4 sm:p-6">
+                <div className="max-w-4xl mx-auto space-y-6">
+                    {messages.map((msg, index) => (
+                        <div
+                            key={index}
+                            className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                        >
+                            <div
+                                className={`max-w-[80%] px-4 py-3 rounded-2xl shadow-sm ${msg.role === 'user'
+                                        ? 'bg-indigo-600 text-white rounded-tr-none'
+                                        : 'bg-white text-gray-800 border border-gray-100 rounded-tl-none'
+                                    }`}
+                            >
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            </div>
                         </div>
-                    </div>
+                    ))}
+
+                    {loading && (
+                        <div className="flex justify-start">
+                            <div className="bg-white border border-gray-100 px-4 py-3 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1">
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
+                                <div className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce"></div>
+                            </div>
+                        </div>
+                    )}
+                    <div ref={messagesEndRef} />
                 </div>
             </main>
+
+            {/* Input Bar Area */}
+            <div className="bg-white border-t border-gray-200 p-4 sm:p-6 shrink-0">
+                <div className="max-w-4xl mx-auto">
+                    <form
+                        onSubmit={handleSendMessage}
+                        className="relative flex items-center"
+                    >
+                        <input
+                            type="text"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Type your message..."
+                            disabled={loading}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-2xl pl-4 pr-24 py-4 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all disabled:opacity-50"
+                        />
+                        <button
+                            type="submit"
+                            disabled={loading || !message.trim()}
+                            className="absolute right-2 px-6 py-2 bg-indigo-600 text-white rounded-xl font-medium hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-all shadow-md"
+                        >
+                            {loading ? '...' : 'Send'}
+                        </button>
+                    </form>
+                    <p className="text-center text-[10px] text-gray-400 mt-3 uppercase tracking-widest font-semibold">
+                        Powered by AI Assistant
+                    </p>
+                </div>
+            </div>
         </div>
     );
 };
