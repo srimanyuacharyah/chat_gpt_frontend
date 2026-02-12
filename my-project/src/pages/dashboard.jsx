@@ -15,16 +15,10 @@ const Dashboard = () => {
     const userId = localStorage.getItem('user_identity') || 'guest';
     const storageKey = `ai_chats_v2_${userId}`;
 
-    const [chats, setChats] = useState(() => {
-        const savedChats = localStorage.getItem(storageKey);
-        return savedChats ? JSON.parse(savedChats) : [
-            { id: Date.now().toString(), title: 'Welcome Chat', messages: [{ role: 'assistant', content: `Hello! I'm your premium AI assistant. How can I help you today?` }] }
-        ];
-    });
-
+    const [chats, setChats] = useState([]);
     const [activeChatId, setActiveChatId] = useState(() => {
         const savedActiveId = localStorage.getItem(`active_chat_id_${userId}`);
-        return savedActiveId || (chats.length > 0 ? chats[0].id : '');
+        return savedActiveId || '';
     });
 
     const activeChat = chats.find(chat => chat.id === activeChatId) || chats[0] || { messages: [] };
@@ -33,15 +27,94 @@ const Dashboard = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
+    // Load chats from backend on mount
+    useEffect(() => {
+        const fetchChats = async () => {
+            const token = localStorage.getItem('access_token');
+            if (!token) return;
+            try {
+                const res = await fetch('http://127.0.0.1:8000/chats/', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.length > 0) {
+                        setChats(data.map(c => ({ id: c.id, title: c.chat_name, messages: [], updated_at: c.updated_at })));
+                        if (!activeChatId) setActiveChatId(data[0].id);
+                    } else {
+                        // Create a default chat if none exist
+                        const defaultChat = { id: Date.now().toString(), title: 'Welcome Chat', messages: [{ role: 'assistant', content: `Hello! I'm your premium AI assistant. How can I help you today?` }] };
+                        setChats([defaultChat]);
+                        setActiveChatId(defaultChat.id);
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to fetch chats:", err);
+            }
+        };
+        fetchChats();
+    }, []);
+
+    // Scroll to bottom whenever messages or loading state changes
     useEffect(() => {
         scrollToBottom();
     }, [activeChat.messages, loading]);
 
-    // Save chats whenever they change, scoped to the user
+    // Load active chat details if messages are empty
     useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(chats));
+        if (!activeChatId) return;
+        const currentChat = chats.find(c => c.id === activeChatId);
+        if (currentChat && currentChat.messages.length === 0) {
+            const fetchChatDetails = async () => {
+                const token = localStorage.getItem('access_token');
+                try {
+                    const res = await fetch(`http://127.0.0.1:8000/chats/${activeChatId}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        setChats(prev => prev.map(c => c.id === activeChatId ? { ...c, messages: data.messages } : c));
+                    }
+                } catch (err) {
+                    console.error("Failed to fetch chat details:", err);
+                }
+            };
+            fetchChatDetails();
+        }
+    }, [activeChatId]);
+
+    // Save active chat to backend whenever messages change
+    useEffect(() => {
+        if (!activeChatId) return;
+        const currentChat = chats.find(c => c.id === activeChatId);
+        if (currentChat && currentChat.messages.length > 0) {
+            const saveChat = async () => {
+                const token = localStorage.getItem('access_token');
+                try {
+                    await fetch('http://127.0.0.1:8000/chats/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            id: isNaN(activeChatId) ? null : activeChatId, // New chats have timestamp IDs, backend needs integer or null
+                            chat_name: currentChat.title,
+                            messages: currentChat.messages
+                        })
+                    });
+                } catch (err) {
+                    console.error("Failed to save chat:", err);
+                }
+            };
+            // Debounce or at least throttle in a real app
+            saveChat();
+        }
+    }, [chats.find(c => c.id === activeChatId)?.messages]);
+
+    useEffect(() => {
         localStorage.setItem(`active_chat_id_${userId}`, activeChatId);
-    }, [chats, activeChatId, storageKey, userId]);
+    }, [activeChatId, userId]);
 
     useEffect(() => {
         const token = localStorage.getItem('access_token');
@@ -68,8 +141,18 @@ const Dashboard = () => {
         setActiveChatId(newChat.id);
     };
 
-    const handleDeleteChat = (e, id) => {
+    const handleDeleteChat = async (e, id) => {
         e.stopPropagation();
+        const token = localStorage.getItem('access_token');
+        try {
+            await fetch(`http://127.0.0.1:8000/chats/${id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (err) {
+            console.error("Failed to delete chat:", err);
+        }
+
         const updatedChats = chats.filter(chat => chat.id !== id);
         if (updatedChats.length === 0) {
             const defaultChat = { id: Date.now().toString(), title: 'New Chat', messages: [{ role: 'assistant', content: 'Hello!' }] };
@@ -360,6 +443,15 @@ const Dashboard = () => {
                     </div>
                     {/* Advanced Features Toolbar */}
                     <div className="flex items-center gap-2 md:gap-4">
+                        <button
+                            onClick={handleGenerateImage}
+                            disabled={loading || !message.trim()}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 hover:text-emerald-300 transition-all text-xs border border-emerald-500/20 disabled:opacity-30 disabled:grayscale"
+                            title="Describe something in the chat box first"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            Generate Image
+                        </button>
                         <button
                             onClick={handleExportPDF}
                             disabled={actionLoading}
