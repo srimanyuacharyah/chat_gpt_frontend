@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE } from '../config';
 
 const Dashboard = () => {
     const navigate = useNavigate();
@@ -33,7 +34,7 @@ const Dashboard = () => {
             const token = localStorage.getItem('access_token');
             if (!token) return;
             try {
-                const res = await fetch('http://127.0.0.1:8000/chats/', {
+                const res = await fetch(`${API_BASE}/chats/`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -68,7 +69,7 @@ const Dashboard = () => {
             const fetchChatDetails = async () => {
                 const token = localStorage.getItem('access_token');
                 try {
-                    const res = await fetch(`http://127.0.0.1:8000/chats/${activeChatId}`, {
+                    const res = await fetch(`${API_BASE}/chats/${activeChatId}`, {
                         headers: { 'Authorization': `Bearer ${token}` }
                     });
                     if (res.ok) {
@@ -91,7 +92,7 @@ const Dashboard = () => {
             const saveChat = async () => {
                 const token = localStorage.getItem('access_token');
                 try {
-                    await fetch('http://127.0.0.1:8000/chats/', {
+                    await fetch(`${API_BASE}/chats/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -145,7 +146,7 @@ const Dashboard = () => {
         e.stopPropagation();
         const token = localStorage.getItem('access_token');
         try {
-            await fetch(`http://127.0.0.1:8000/chats/${id}`, {
+            await fetch(`${API_BASE}/chats/${id}`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` }
             });
@@ -169,7 +170,7 @@ const Dashboard = () => {
     const handleExportPDF = async () => {
         setActionLoading(true);
         try {
-            const res = await fetch('http://127.0.0.1:8000/generate-pdf', {
+            const res = await fetch(`${API_BASE}/generate-pdf`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -202,7 +203,7 @@ const Dashboard = () => {
         setActionLoading(true);
         const chatContent = activeChat.messages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n\n');
         try {
-            const res = await fetch('http://127.0.0.1:8000/send-email', {
+            const res = await fetch(`${API_BASE}/send-email`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -239,7 +240,7 @@ const Dashboard = () => {
         setMessage('');
 
         try {
-            const res = await fetch(`http://127.0.0.1:8000/generate-image?prompt=${encodeURIComponent(currentPrompt)}`, {
+            const res = await fetch(`${API_BASE}/generate-image?prompt=${encodeURIComponent(currentPrompt)}`, {
                 method: 'POST'
             });
             if (res.ok) {
@@ -281,7 +282,7 @@ const Dashboard = () => {
         const token = localStorage.getItem('access_token');
 
         try {
-            const res = await fetch('http://127.0.0.1:8000/ai_response', {
+            const res = await fetch(`${API_BASE}/ai_response`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
